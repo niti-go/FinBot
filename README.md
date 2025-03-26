@@ -9,3 +9,4 @@ A chatbot that provides financial guidance to users using Retrieval-Augmented Ge
 PM: Kelly Lambert  
 TPM: Niti Goyal  
 APM: Samuel Hecht
+SWE: Jane Tenecota-Villa
