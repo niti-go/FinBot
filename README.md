@@ -10,5 +10,5 @@ PM: Kelly Lambert
 TPM: Niti Goyal  
 APM: Samuel Hecht  
 SWE: Jane Tenecota-Villa  
-SWE: Adeeb Khan
-SWE: Noah Lingo
+SWE: Adeeb Khan  
+SWE: Noah Lingo  
