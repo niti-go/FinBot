@@ -1,6 +1,7 @@
 import pandas as pd
 #from config import API_KEY #later on we will individually need to create a config.py file with api keys
 import requests
+import yfinance as yf
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 
@@ -92,19 +93,19 @@ def get_filings(cik):
     return pd.DataFrame(results)
 
 
-def fetch_cik_list():
+def fetch_cik_dict():
     """
-    Returns the list of all CIKs from the SEC website as strings.
+    Returns a dictionary mapping CIKs to (Ticker Symbol, Institution Name) from the SEC website.
     """
     url = "https://www.sec.gov/files/company_tickers.json"
     headers = {"User-Agent": "Some Name (some.email@example.com)"}
     
     response = requests.get(url, headers=headers)
     if response.status_code != 200:
-        return []
+        return {}
     
     data = response.json()
-    return [str(item["cik_str"]).zfill(10) for item in data.values()]
+    return {str(item["cik_str"]).zfill(10): (item["ticker"], item["title"]) for item in data.values()}
 
 
 def get_all_13f_filings(MAX_NUM_TO_FETCH=6):
@@ -116,18 +117,52 @@ def get_all_13f_filings(MAX_NUM_TO_FETCH=6):
     Returns:
         df: A dataframe of all 13F filings across all CIKs.
     """
-    ciks = fetch_cik_list()
+    cik_mapping = fetch_cik_dict()
     df = pd.DataFrame()
     count = 0
     
-    for cik in tqdm(ciks, desc="Fetching 13F Filings"):
-      df = pd.concat([df, get_filings(cik)], ignore_index=True)
-      count+=1
+    for cik in tqdm(cik_mapping.keys(), desc="Fetching 13F Filings"):
+        cik_filings = get_filings(cik)
+        if cik_filings.empty:
+            continue
       
-      if count == MAX_NUM_TO_FETCH:
-        break
+        cik_filings["Ticker Symbol"] = cik_mapping[cik][0]
+        cik_filings["Institution Name"] = cik_mapping[cik][1]
+        cik_filings["Sector/Industry"] = cik_filings["Ticker Symbol"].apply(lambda x: get_sector_from_yahoo(x) if pd.notna(x) else "N/A")
+        cik_filings["Assets Under Management (AUM)"] = cik_filings["Ticker Symbol"].apply(lambda x: get_aum_and_fund_type(x)["AUM"] if pd.notna(x) else "N/A")
+        cik_filings["Fund Type"] = cik_filings["Ticker Symbol"].apply(lambda x: get_aum_and_fund_type(x)["Fund Type"] if pd.notna(x) else "N/A")
+        df = pd.concat([df, cik_filings], ignore_index=True)
+        count+=1
+      
+        if count == MAX_NUM_TO_FETCH:
+            break
 
     return df
+
+
+def get_sector_from_yahoo(ticker):
+    """Fetch sector/industry from Yahoo Finance"""
+    try:
+        stock = yf.Ticker(ticker)
+        sector = stock.info.get("sector", "N/A")
+        return sector
+    except:
+        return "N/A"
+    
+
+def get_aum_and_fund_type(ticker):
+    """Fetch AUM (Assets Under Management) and Fund Type from Yahoo Finance."""
+    try:
+        stock = yf.Ticker(ticker)
+        aum = stock.info.get("totalAssets", "N/A")
+        fund_type = stock.info.get("category", "N/A")
+        
+        if isinstance(aum, (int, float)):
+            aum = f"${aum/1e9:.2f}B"
+        
+        return {"AUM": aum, "Fund Type": fund_type}
+    except:
+        return {"AUM": "N/A", "Fund Type": "N/A"}
 
 
 def main():
