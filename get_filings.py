@@ -15,8 +15,32 @@ def fetch_holdings_data(URL):
     Extract this information for each holding (maybe as a dictionary) and return a list of all holdings.
     (Or maybe return a dataframe where each row is a holding)
     """
-
-    pass
+    headers = {"User-Agent": "Some Name (some.email@example.com)"}
+    response = requests.get(URL, headers=headers)
+    
+    if response.status_code != 200:
+        print(f"Failed to fetch data from {URL}")
+        return pd.DataFrame()
+    
+    soup = BeautifulSoup(response.text, "lxml")
+    
+    holdings = []
+    for info in soup.find_all("infoTable"):
+        holding = {
+            "issuer_name": info.find("nameOfIssuer").text if info.find("nameOfIssuer") else None,
+            "cusip": info.find("cusip").text if info.find("cusip") else None,
+            "value": int(info.find("value").text) * 1000 if info.find("value") else None,  # Value in thousands
+            "shares": int(info.find("shrsOrPrnAmt").find("sshPrnamt").text) if info.find("shrsOrPrnAmt") else None,
+            "investment_discretion": info.find("investmentDiscretion").text if info.find("investmentDiscretion") else None,
+            "voting_authority": {
+                "sole": int(info.find("votingAuthority").find("Sole").text) if info.find("votingAuthority") else None,
+                "shared": int(info.find("votingAuthority").find("Shared").text) if info.find("votingAuthority") else None,
+                "none": int(info.find("votingAuthority").find("None").text) if info.find("votingAuthority") else None,
+            }
+        }
+        holdings.append(holding)
+    
+    return pd.DataFrame(holdings)
     
 
 def get_filings(cik):
