@@ -5,3 +5,8 @@ beautifulsoup4
 yfinance
 lxml
 psycopg2-binary
+langchain
+langchain-community
+#langchain-openai
+langchain-google-genai
+streamlit
