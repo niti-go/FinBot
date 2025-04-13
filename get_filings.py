@@ -57,7 +57,8 @@ def get_filings(cik):
     #See https://www.sec.gov/search-filings/edgar-application-programming-interfaces 
     #for more information on the SEC EDGAR API we are using.
 
-    url = f"https://data.sec.gov/submissions/CIK{cik:010}.json"
+    # url = f"https://data.sec.gov/submissions/CIK{cik:010}.json"
+    url = f"https://data.sec.gov/submissions/CIK{int(cik):010d}.json"
     headers = {"User-Agent": "Some Name (some.email@example.com)"}
     
     response = requests.get(url, headers=headers)

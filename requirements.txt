@@ -3,3 +3,5 @@ requests
 tqdm
 beautifulsoup4
 yfinance
+lxml
+psycopg2-binary
