@@ -10,3 +10,4 @@ langchain-community
 #langchain-openai
 langchain-google-genai
 streamlit
+python-dotenv
