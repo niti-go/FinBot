@@ -1,12 +1,17 @@
+import os
+from dotenv import load_dotenv
 import psycopg2
+
+# Load the variables from .env into environment variables
+load_dotenv()
 
 def connect():
     return psycopg2.connect(
-        dbname="finbot",
-        user="your_login",  # replace with your login, run whoami in terminal
-        password="",
-        host="localhost",
-        port="5432"
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT")
     )
 
 def insert_investment_manager(cik, name, asset_size):

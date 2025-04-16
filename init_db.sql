@@ -18,7 +18,7 @@ CREATE TABLE Filings (
 CREATE TABLE Securities (
     security_id SERIAL PRIMARY KEY,
     ticker VARCHAR,
-    cusip VARCHAR,
+    cusip VARCHAR UNIQUE,
     name VARCHAR,
     sector VARCHAR
 );
