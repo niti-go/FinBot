@@ -1,42 +1,76 @@
 import pandas as pd
 #from config import API_KEY #later on we will individually need to create a config.py file with api keys
 import requests
+import xml.etree.ElementTree as ET
 import yfinance as yf
 from tqdm import tqdm
+import json
 from bs4 import BeautifulSoup
 
 def fetch_holdings_data(URL):
     """
-    TODO: Visit the URL to and return the holdings data for this filing.
-    (example URL that will be passed in, a filing for GOOGL: https://www.sec.gov/Archives/edgar/data/1652044/000156761922020202/0001567619-22-020202.txt)
-   
-    Each filing contains a list of holdings. We want to extract the information of all the holdings for this filing.
-    This involves parsing the XML data at the URL.
-    Each holding includes the name of the issuer, CUSIP, value, shares, investment discretion, and voting authority, and maybe some other information.
-    Extract this information for each holding (maybe as a dictionary) and return a list of all holdings.
-    (Or maybe return a dataframe where each row is a holding)
+        TODO: Visit the URL to and return the holdings data for this filing.
+        (example URL that will be passed in, a filing for GOOGL: https://www.sec.gov/Archives/edgar/data/1652044/000156761922020202/0001567619-22-020202.txt)
+    
+        Each filing contains a list of holdings. We want to extract the information of all the holdings for this filing.
+        This involves parsing the XML data at the URL.
+        Each holding includes the name of the issuer, CUSIP, value, shares, investment discretion, and voting authority, and maybe some other information.
+        Extract this information for each holding (maybe as a dictionary) and return a list of all holdings.
+        (Or maybe return a dataframe where each row is a holding)
     """
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.max_colwidth', None)
     headers = {"User-Agent": "Some Name (some.email@example.com)"}
     response = requests.get(URL, headers=headers)
     
     if response.status_code != 200:
-        print(f"Failed to fetch data from {URL}")
+        #print(f"Failed to fetch data from {URL}")
         return pd.DataFrame()
     
-    soup = BeautifulSoup(response.text, "lxml")
+    # format: <informationTable xmlns..> ... </informationTable>
+    start_index = response.text.find("<informationTable")
+    if start_index == -1:
+        #print(f"Can't find <informationTable> in {URL}")
+        return pd.DataFrame()
+    xml_text = response.text[start_index:]
+    end_index = xml_text.find("</informationTable>")
+    if end_index == -1:
+        print("Can't find <informationTable> in {URL}")
+        return pd.DataFrame()
+    xml_text = xml_text[:end_index+len("</informationTable>")]
+    
+    # Element Tree XML
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError as e:
+        print("XML parsing error:", e)
+        return pd.DataFrame()
+    
+    # Namespace dictionary based on the XML content
+    ns = {'info': 'http://www.sec.gov/edgar/document/thirteenf/informationtable'}
     
     holdings = []
-    for info in soup.find_all("infoTable"):
+    for info in root.findall('.//info:infoTable', ns):
+        issuer_name = info.find('info:nameOfIssuer', ns)
+        cusip = info.find('info:cusip', ns)
+        value = info.find('info:value', ns)
+        shares = info.find('info:shrsOrPrnAmt/info:sshPrnamt', ns)
+        investment_discretion = info.find('info:investmentDiscretion', ns)
+        voting = info.find('info:votingAuthority', ns)
+        sole = voting.find('info:Sole', ns) if voting is not None else None
+        shared = voting.find('info:Shared', ns) if voting is not None else None
+        none_val = voting.find('info:None', ns) if voting is not None else None
+
         holding = {
-            "issuer_name": info.find("nameOfIssuer").text if info.find("nameOfIssuer") else None,
-            "cusip": info.find("cusip").text if info.find("cusip") else None,
-            "value": int(info.find("value").text) * 1000 if info.find("value") else None,  # Value in thousands
-            "shares": int(info.find("shrsOrPrnAmt").find("sshPrnamt").text) if info.find("shrsOrPrnAmt") else None,
-            "investment_discretion": info.find("investmentDiscretion").text if info.find("investmentDiscretion") else None,
+            "issuer_name": issuer_name.text if issuer_name is not None else None,
+            "cusip": cusip.text if cusip is not None else None,
+            "value": int(value.text) * 1000 if value is not None and value.text.isdigit() else None,  # Value in thousands
+            "shares": int(shares.text) if shares is not None and shares.text.isdigit() else None,
+            "investment_discretion": investment_discretion.text if investment_discretion is not None else None,
             "voting_authority": {
-                "sole": int(info.find("votingAuthority").find("Sole").text) if info.find("votingAuthority") else None,
-                "shared": int(info.find("votingAuthority").find("Shared").text) if info.find("votingAuthority") else None,
-                "none": int(info.find("votingAuthority").find("None").text) if info.find("votingAuthority") else None,
+                "sole": int(sole.text) if sole is not None and sole.text.isdigit() else None,
+                "shared": int(shared.text) if shared is not None and shared.text.isdigit() else None,
+                "none": int(none_val.text) if none_val is not None and none_val.text.isdigit() else None,
             }
         }
         holdings.append(holding)
@@ -170,6 +204,8 @@ def main():
     
     filings = get_all_13f_filings(MAX_NUM_TO_FETCH=6)
     print(f"Fetched {len(filings)} 13F filings.")
+    filings["data"] = filings["data"].apply(lambda df: df.to_dict(orient="records"))
+    filings["data"] = filings["data"].apply(json.dumps)
     filings.to_csv("13f_filings.csv", index=False)
 
 
