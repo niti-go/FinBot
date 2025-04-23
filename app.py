@@ -11,29 +11,28 @@ import sqlite3
 import pandas as pd
 import os
 import config # Put your API key in config.py
+from prompt import init_agent
 
-# == PROMPT.PY CODE TAKEN DIRECTLY ==
-
-GEMINI_API_KEY = config.GEMINI_API_KEY
-os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-exp", google_api_key=GEMINI_API_KEY, temperature=0)
-df = pd.read_csv("13f_filings.csv")
-conn = sqlite3.connect("testdatabase.db")
-
-# Convert DataFrame to a SQLite table named "Filings"
-df.to_sql("Filings", conn, if_exists='replace')
-my_db = SQLDatabase.from_uri("sqlite:///testdatabase.db")
-
-agent_executor = create_sql_agent(
-    llm=llm,
-    toolkit=SQLDatabaseToolkit(db=my_db, llm=llm),
-    agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    handle_parsing_errors=True,
-    verbose=True,
-    agent_executor_kwargs={"return_intermediate_steps": True} # Added this line for chain of thought
-)
+# == INTEGRATING WITH PROMPT.PY ==
+agent_executor, df = init_agent()
 
 # == APP.PY NEW CODE == 
+
+# page setup
+st.set_page_config(page_title="FinBot")
+st.title("FinBot Chat")
+st.markdown("Ask about institutional investor behaviors and get answers derived from analyzing **13F filings**!")
+with st.expander("ℹ️   What are 13F filings?", expanded=False):
+    st.markdown("""
+        **13F filings** are quarterly reports that institutional investment managers with over $100 million in assets must file with the Securities and Exchange Commision (SEC).
+        
+        These filings disclose:
+        - Equity holdings
+        - Investment strategies
+        - Portfolio changes
+        
+        FinBot Chat analyzes these filings to help you identify trends, track specific investors, and understand market movements.
+    """)
 
 # init streamlit msg stream
 if "messages" not in st.session_state:
@@ -45,6 +44,14 @@ for message in st.session_state.messages:
         with st.expander("Show chain of thought", expanded=False):
             for step in message["chain"]:
                 st.write(step)
+
+# sidebar
+with st.sidebar:
+    if st.button("Clear chat"):
+        st.session_state.messages = []
+        st.rerun()
+    # later include sample queries?
+
 # prompt loop     
 if prompt := st.chat_input("What's up?"):
     # write user message

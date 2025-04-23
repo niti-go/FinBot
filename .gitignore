@@ -1,4 +1,11 @@
 venv/
 .env
-.DS_Store
 config.py
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# IDE / OS
+.DS_Store
+*.swp
