@@ -6,6 +6,7 @@ import yfinance as yf
 from tqdm import tqdm
 import json
 from bs4 import BeautifulSoup
+from name_to_ticker import get_ticker_from_name, clean_security_name
 
 def fetch_holdings_data(URL):
     """
@@ -50,7 +51,17 @@ def fetch_holdings_data(URL):
     ns = {'info': 'http://www.sec.gov/edgar/document/thirteenf/informationtable'}
     
     holdings = []
-    for info in root.findall('.//info:infoTable', ns):
+    print(f"Fetching {len(root.findall('.//info:infoTable', ns))} holdings from this filing.")
+    counting=0
+
+    # Load and clean name-to-ticker mapping csv
+    tickers_df = pd.read_csv("name_ticker_mapping.csv")
+    tickers_df["Clean Name"] = tickers_df["Security Name"].apply(clean_security_name)
+    choices = tickers_df["Clean Name"].tolist()
+
+    for info in tqdm(root.findall('.//info:infoTable', ns)):
+        #print(counting)
+        counting+=1
         issuer_name = info.find('info:nameOfIssuer', ns)
         cusip = info.find('info:cusip', ns)
         value = info.find('info:value', ns)
@@ -67,6 +78,7 @@ def fetch_holdings_data(URL):
             "value": int(value.text) * 1000 if value is not None and value.text.isdigit() else None,  # Value in thousands
             "shares": int(shares.text) if shares is not None and shares.text.isdigit() else None,
             "investment_discretion": investment_discretion.text if investment_discretion is not None else None,
+            "holding_ticker": get_ticker_from_name(issuer_name.text, choices, tickers_df),
             "voting_authority": {
                 "sole": int(sole.text) if sole is not None and sole.text.isdigit() else None,
                 "shared": int(shared.text) if shared is not None and shared.text.isdigit() else None,
@@ -110,6 +122,7 @@ def get_filings(cik):
     
     results = []
     for i in indices:
+        print(f"num of filings for cik {cik}: {len(indices)}")
         accession = filings["accessionNumber"][i].replace("-", "")
         text_url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession}/{filings['accessionNumber'][i]}.txt"
         #print(text_url)
@@ -128,19 +141,43 @@ def get_filings(cik):
     return pd.DataFrame(results)
 
 
-def fetch_cik_dict():
+def fetch_cik_dict(demo_ciks=True):
     """
     Returns a dictionary mapping CIKs to (Ticker Symbol, Institution Name) from the SEC website.
     """
-    url = "https://www.sec.gov/files/company_tickers.json"
-    headers = {"User-Agent": "Some Name (some.email@example.com)"}
-    
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        return {}
-    
-    data = response.json()
-    return {str(item["cik_str"]).zfill(10): (item["ticker"], item["title"]) for item in data.values()}
+    if demo_ciks:
+        #The CIKs below are large and have thousands of holdings, not ideal for demo
+#         demo_dict = {
+#             "0000102909".zfill(10): (None, "VANGUARD GROUP INC"),
+#     "2012383".zfill(10): ("BLK", "BlackRock, Inc."),
+#     "1167483".zfill(10): (None, "Tiger Global Management LLC"),
+#     "93751".zfill(10): ("STT", "State Street Corp"),
+#     "1018724".zfill(10): ("AMZN", "Amazon.com Inc"),
+#     "51143".zfill(10): ("IBM", "International Business Machines Corp")
+# }
+        demo_dict = {
+            # "1385613".zfill(10): ("GLRE", "GREENLIGHT CAPITAL RE, LTD."),
+            # "01056831".zfill(10): (None, "Fairholme Capital Management LLC"),
+            "1018724".zfill(10): ("AMZN", "Amazon.com Inc"),
+            "0001652044".zfill(10): ("GOOGL", "Alphabet Inc."),
+    "0001326801".zfill(10): ("META", "Meta Platforms, Inc."),
+    "0000320193".zfill(10): ("AAPL", "Apple Inc."),
+    "0000789019".zfill(10): ("MSFT", "MICROSOFT CORP"),
+    "0001045810".zfill(10): ("NVDA", "NVIDIA CORP"),
+        }
+
+        return demo_dict
+
+    else:
+        url = "https://www.sec.gov/files/company_tickers.json"
+        headers = {"User-Agent": "Some Name (some.email@example.com)"}
+        
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            return {}
+        
+        data = response.json()
+        return {str(item["cik_str"]).zfill(10): (item["ticker"], item["title"]) for item in data.values()}
 
 
 def get_all_13f_filings(MAX_NUM_TO_FETCH=6):
@@ -152,7 +189,7 @@ def get_all_13f_filings(MAX_NUM_TO_FETCH=6):
     Returns:
         df: A dataframe of all 13F filings across all CIKs.
     """
-    cik_mapping = fetch_cik_dict()
+    cik_mapping = fetch_cik_dict(demo_ciks=True)
     df = pd.DataFrame()
     count = 0
     
@@ -202,12 +239,12 @@ def get_aum_and_fund_type(ticker):
 
 def main():
     
-    filings = get_all_13f_filings(MAX_NUM_TO_FETCH=6)
+    filings = get_all_13f_filings(MAX_NUM_TO_FETCH=10)
     print(f"Fetched {len(filings)} 13F filings.")
     filings["data"] = filings["data"].apply(lambda df: df.to_dict(orient="records"))
     filings["data"] = filings["data"].apply(json.dumps)
-    filings.to_csv("13f_filings.csv", index=False)
-
+    filings.to_csv("13f_filings_demo.csv", index=False)
+    print("✅ CSV file '13f_filings_demo.csv' has been created successfully.")
 
 if __name__ == "__main__":
     main()
