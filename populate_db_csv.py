@@ -1,5 +1,7 @@
 import pandas as pd
 import json
+from tqdm import tqdm
+
 from db_utils import (
     insert_investment_manager,
     insert_filing,
@@ -54,10 +56,10 @@ def populate_database(csv_path: str):
             print(f"Error parsing holdings JSON for CIK {cik}: {e}")
             continue
 
-        for h in holdings_data:
+        for h in tqdm(holdings_data):
             try:
                 security_id = insert_security(
-                    ticker=ticker,
+                    ticker=h.get("holdings_ticker"),
                     cusip=h.get("cusip"),
                     name=h.get("issuer_name"),
                     sector=sector
@@ -76,4 +78,4 @@ def populate_database(csv_path: str):
     print("🌼 Database population complete.")
 
 if __name__ == "__main__":
-    populate_database("13f_filings.csv")
+    populate_database("13f_filings_demo.csv")
