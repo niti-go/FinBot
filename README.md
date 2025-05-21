@@ -1,13 +1,22 @@
 # FinBot
-Cornell Fintech Club Sp'25 Project
+Cornell Fintech Club Spring '25 Project
 
 ## About
 
-A chatbot that provides financial guidance to users using Retrieval-Augmented Generation (RAG). By referencing grounded financial data, our chatbot helps users gain a fast, contextual understanding of the financial landscape.
+We built a chatbot that answers questions about institutional investor behavior by analyzing SEC Form 13F filings. These filings, submitted quarterly by investment managers with over $100 million in assets, disclose their holdings in U.S. exchange-traded securities, including position sizes, market values, and asset types.
+
+Our system uses a database of 13F filings data, a LangChain SQL Agent to interpret natural language queries, and a Streamlit frontend to deliver insights. Users can ask questions in plain English and receive data-driven answers about institutional trading trends.
+
+Example questions it can answer:
+
+* "Which top 5 firms increased their Tesla holdings the most over the last two quarters?"
+* "Has BlackRock shifted from financials to healthcare in the past year?"
+* "What new positions did Berkshire Hathaway add this quarter?"
+
 
 ## Contributors
-PM: Kelly Lambert  
 TPM: Niti Goyal  
+PM: Kelly Lambert  
 APM: Samuel Hecht  
 SWE: Jane Tenecota-Villa  
 SWE: Adeeb Khan  
