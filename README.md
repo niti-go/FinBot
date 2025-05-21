@@ -13,6 +13,7 @@ Example questions it can answer:
 * "Has BlackRock shifted from financials to healthcare in the past year?"
 * "What new positions did Berkshire Hathaway add this quarter?"
 
+This information can help investors understand large firms' strategies. For example, if a major firm suddenly puts a lot more money into healthcare, it could indicate that they expect that sector to grow, maybe by anticipating policy changes in that area. This can inform your own portfolio strategy. It can also give you insights into the risk exposure of the firm itself.
 
 ## Contributors
 TPM: Niti Goyal  
